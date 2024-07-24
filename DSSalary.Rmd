@@ -1,0 +1,194 @@
+---
+---
+---
+
+```{r}
+data <- read.csv("data/Salary Prediction of Data Professions.csv")
+head(data)
+```
+
+# Set Data Types
+
+```{r}
+data$SEX <- factor(data$SEX)
+data$DESIGNATION <- factor(data$DESIGNATION)
+data$UNIT <- factor(data$UNIT)
+data$DOJ <- as.Date(data$DOJ, format = "%m-%d-%Y")
+data$CURRENT.DATE <- as.Date(data$CURRENT.DATE, format = "%m-%d-%Y")
+head(data)
+```
+
+# Descriptive Analysis
+
+```{r}
+data$LEAVES.USED.PERCENTAGE <- 100 * data$LEAVES.USED / (data$LEAVES.REMAINING + data$LEAVES.USED)
+head(data)
+```
+
+## Histograms
+
+```{r}
+hist(data$SALARY)
+hist(data$RATINGS)
+hist(data$AGE)
+hist(data$PAST.EXP)
+hist(data$LEAVES.USED)
+hist(data$LEAVES.REMAINING)
+hist(data$LEAVES.USED.PERCENTAGE)
+```
+
+```{r}
+names(data)
+```
+
+```{r}
+barplot(table(data$SEX),
+        ylab = 'Frequency',
+        xlab = 'SEX')
+barplot(table(data$DESIGNATION),
+        ylab = 'Frequency',
+        xlab = 'DESIGNATION')
+barplot(table(data$UNIT),
+        ylab = 'Frequency',
+        xlab = 'UNIT')
+```
+
+```{r}
+library(dplyr)
+pairs(
+  data %>% select(SALARY, AGE, RATINGS, PAST.EXP, LEAVES.USED.PERCENTAGE)
+)
+```
+
+# Boxplots
+
+```{r}
+boxplot(SALARY ~ SEX,
+  data = data,
+  main = "Salary by Sex",
+  xlab = "Sex",
+  ylab = "Salary"
+)
+boxplot(RATINGS ~ SEX,
+  data = data,
+  main = "Ratings by Sex",
+  xlab = "Sex",
+  ylab = "Ratings"
+)
+boxplot(AGE ~ SEX,
+  data = data,
+  main = "Age by Sex",
+  xlab = "Sex",
+  ylab = "Age"
+)
+boxplot(PAST.EXP ~ SEX,
+  data = data,
+  main = "Past Exp by Sex",
+  xlab = "Sex",
+  ylab = "Past Exp"
+)
+boxplot(LEAVES.USED.PERCENTAGE ~ SEX,
+  data = data,
+  main = "Leaves Used % by Sex",
+  xlab = "Sex",
+  ylab = "Leaves Used %"
+)
+
+
+boxplot(SALARY ~ UNIT,
+  data = data,
+  main = "Salary by Unit",
+  xlab = "Unit",
+  ylab = "Salary"
+)
+boxplot(RATINGS ~ UNIT,
+  data = data,
+  main = "Ratings by Unit",
+  xlab = "Unit",
+  ylab = "Ratings"
+)
+boxplot(AGE ~ UNIT,
+  data = data,
+  main = "Age by Unit",
+  xlab = "Unit",
+  ylab = "Age"
+)
+boxplot(PAST.EXP ~ UNIT,
+  data = data,
+  main = "Past Exp by Unit",
+  xlab = "Unit",
+  ylab = "Past Exp"
+)
+boxplot(LEAVES.USED.PERCENTAGE ~ UNIT,
+  data = data,
+  main = "Leaves Used % by Unit",
+  xlab = "Unit",
+  ylab = "Leaves Used %"
+)
+
+
+boxplot(SALARY ~ DESIGNATION,
+  data = data,
+  main = "Salary by Designation",
+  xlab = "Designation",
+  ylab = "Salary"
+)
+boxplot(RATINGS ~ DESIGNATION,
+  data = data,
+  main = "Ratings by Designation",
+  xlab = "Designation",
+  ylab = "Ratings"
+)
+boxplot(AGE ~ DESIGNATION,
+  data = data,
+  main = "Age by Designation",
+  xlab = "Designation",
+  ylab = "Age"
+)
+boxplot(PAST.EXP ~ DESIGNATION,
+  data = data,
+  main = "Past Exp by Designation",
+  xlab = "Designation",
+  ylab = "Past Exp"
+)
+boxplot(LEAVES.USED.PERCENTAGE ~ DESIGNATION,
+  data = data,
+  main = "Leaves Used % by Designation",
+  xlab = "Designation",
+  ylab = "Leaves Used %"
+)
+```
+
+# ANCOVA Assumption Check
+
+## 
+
+```{r Covariate-Indepedence}
+#fit anova model
+anova_model <- aov(RATINGS ~ UNIT, data = data)
+#view summary of anova model
+summary(anova_model)
+```
+
+`p-value` is larger than .05, meaning there is no significant dependence.
+
+```{r Homogeneity-of-Variance}
+#load car library to conduct Levene's Test
+library(car)
+
+#conduct Levene's Test
+leveneTest(SALARY ~ DESIGNATION, data = data)
+```
+
+`p-value` is `2.2e-16`, meaning *variances across the groups are not equal.*
+
+# Do the ANCOVA Test
+
+```{r}
+
+#fit ANCOVA model
+ancova_model <- aov(SALARY ~ DESIGNATION + RATINGS, data = data)
+
+#view summary of model
+Anova(ancova_model, type="III")
+```

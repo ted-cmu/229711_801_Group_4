@@ -1,0 +1,143 @@
+# [Source](https://www.statology.org/ancova-in-r/){.uri}
+
+```{r}
+#make this example reproducible 
+set.seed(10)
+
+#create dataset
+data <- data.frame(technique = rep(c("A", "B", "C"), each = 30),
+                   current_grade = runif(90, 65, 95),
+                   exam = c(runif(30, 80, 95), runif(30, 70, 95), runif(30, 70, 90)))
+
+# Convert the 'technique' variable to a factor
+data$technique <- as.factor(data$technique)
+
+#view first six lines of dataset
+head(data)
+```
+
+### **Step 1: Explore the Data**
+
+```{r Data-Summary}
+summary(data)
+```
+
+```{r}
+library(dplyr)
+
+data %>%
+  group_by(technique) %>%
+  summarise(mean_grade = mean(current_grade),
+            sd_grade = sd(current_grade),
+            mean_exam = mean(exam),
+            sd_exam = sd(exam))
+```
+
+```{r Boxplots}
+boxplot(exam ~ technique,
+  data = data,
+  main = "Exam Score by Studying Technique",
+  xlab = "Studying Technique",
+  ylab = "Exam Score",
+  col = "steelblue",
+  border = "black"
+)
+```
+
+```{r}
+boxplot(current_grade ~ technique,
+  data = data,
+  main = "Current Grade by Studying Technique",
+  xlab = "Studying Technique",
+  ylab = "Current Grade",
+  col = "steelblue",
+  border = "black"
+)
+```
+
+### **Step 2: Check the Model Assumptions**
+
+Once we’ve done some basic data exploration and are familiar with the data, we need to verify that the following assumptions for ANCOVA are met:
+
+-   **The covariate and the treatment are independent** – we need to verify that the covariate (*current grade)* and the treatment *(studying technique)* are independent of each other, since adding a covariate term into the model only makes sense if the covariate and the treatment act independently on the response variable (*exam*). 
+
+-   **Homogeneity of variance** – we need to verify that the variances among the groups is equal
+
+To verify that the covariate and the treatment are independent, we can run an ANOVA using *current grade* as the response variable and *studying technique* as the predictor variable:
+
+```{r Covariate-Indepedence}
+#fit anova model
+anova_model <- aov(current_grade ~ technique, data = data)
+#view summary of anova model
+summary(anova_model)
+```
+
+The p-value is greater than 0.05, so the covariate (*current grade)* and the treatment (*studying technique*) seem to be independent.
+
+Next, to verify that there is homogeneity of variance among the groups, we can conduct Levene’s Test:
+
+```{r Homogeneity-of-Variance}
+#load car library to conduct Levene's Test
+library("car")
+
+#conduct Levene's Test
+leveneTest(exam ~ technique, data = data)
+```
+
+The p-value from the test is equal to .0001961, which indicates that the variances among the groups are **not equal**. Although we could attempt a transformation on the data to correct this problem, we won’t worry too much about the differences in variance for the time being.
+
+### **Step 3: Fit the ANCOVA Model**
+
+Next, we’ll fit the ANCOVA model using
+
+-   *exam score* as the response variable,
+
+-   *studying technique* as the predictor (or “treatment”) variable, and
+
+-   *current grade* as the covariate.
+
+We’ll use the Anova() function in the car package to do so, just so we can specify that we’d like to use type III sum of squares for the model, since type I sum of squares is dependent upon the order that the predictors are entered into the model:
+
+```{r}
+#load car library
+library(car)
+
+#fit ANCOVA model
+ancova_model <- aov(exam ~ technique + current_grade, data = data)
+
+#view summary of model
+Anova(ancova_model, type="III")
+```
+
+We can see that the p-value for *technique* is extremely small, which indicates that studying technique has a statistically significant effect on exam scores, even after controlling for the current grade.
+
+### **Step 4: Post Hoc Tests**
+
+Although the ANCOVA results told us that *studying technique* had a statistically significant effect on exam scores, we need to run [post hoc tests](https://www.statology.org/a-guide-to-using-post-hoc-tests-with-anova/) to actually find out which studying techniques differ from each other.
+
+To do so, we can use the `glht()` function within the **multcomp** package in R to perform Tukey’s Test for multiple comparisons:
+
+```{r warning=FALSE}
+#load the multcomp library
+library(multcomp)
+
+#fit the ANCOVA model
+ancova_model <- aov(exam ~ technique + current_grade, data = data)
+
+#define the post hoc comparisons to make
+postHocs <- glht(ancova_model, linfct = mcp(technique = "Tukey"))
+
+#view a summary of the post hoc comparisons
+summary(postHocs)
+```
+
+```{r}
+#view the confidence intervals associated with the multiple comparisons
+confint(postHocs)
+```
+
+From the output, we can see that there is a statistically significant difference (at α = .05) in exam scores between studying technique *A* and studying technique *B* (p-value: .000109) as well as between technique *A* and technique *C* (p-value: \<1e-04).
+
+We can also see that there is *not* a statistically significant difference (at α = .05) between techniques *B* and *C*. The confidence intervals between the techniques confirm these conclusions as well.
+
+Thus, we can conclude that using studying technique *A* leads to a statistically significantly greater exam score for students compared to techniques *B* and *C*, even after controlling for the student’s current grade in the class.

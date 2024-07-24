@@ -1,0 +1,119 @@
+```{r}
+data <- read.csv("data/Salary Prediction of Data Professions.csv")
+```
+
+```{r}
+data$SEX <- factor(data$SEX)
+data$DESIGNATION <- factor(data$DESIGNATION)
+data$UNIT <- factor(data$UNIT)
+data$DOJ <- as.Date(data$DOJ, format = "%m-%d-%Y")
+data$CURRENT.DATE <- as.Date(data$CURRENT.DATE, format = "%m-%d-%Y")
+head(data)
+```
+
+# Summary
+
+```{r}
+summary(data)
+```
+
+# Boxplots
+
+```{r}
+boxplot(SALARY ~ UNIT,
+  data = data,
+  main = "Salary by Unit",
+  xlab = "Unit",
+  ylab = "Salary",
+  col = "steelblue",
+  border = "black"
+)
+```
+
+```{r}
+boxplot(SALARY ~ DESIGNATION,
+  data = data,
+  main = "Salary by Designation",
+  xlab = "Designation",
+  ylab = "Salary",
+  col = "steelblue",
+  border = "black"
+)
+```
+
+# ANCOVA Assumption Check
+
+```{r Covariate-Indepedence}
+#fit anova model
+anova_model <- aov(RATINGS ~ UNIT, data = data)
+#view summary of anova model
+summary(anova_model)
+```
+
+`p-value` is larger than .05, meaning there is no significant dependence.
+
+```{r Homogeneity-of-Variance}
+#load car library to conduct Levene's Test
+library("car")
+
+#conduct Levene's Test
+leveneTest(SALARY ~ DESIGNATION, data = data)
+```
+
+`p-value` is `2.2e-16`, meaning *variances across the groups are not equal.*
+
+# Cox-Box Transformation
+
+```{r}
+library(MASS)
+
+# Preliminary
+model <- lm(SALARY ~ DESIGNATION, data = data)
+# Perform the Box-Cox Transformation
+boxcox_result <- boxcox(model, lambda = seq(-2, 2, by = 0.1))
+# Extract the Optimal Lambda
+optimal_lambda <- boxcox_result$x[which.max(boxcox_result$y)]
+print(optimal_lambda)
+
+```
+
+```{r Box-Cox-Transformation}
+
+if (optimal_lambda == 0) {
+    data$SALARY.TRANSFORMED <- log(data$SALARY)
+} else {
+    data$SALARY.TRANSFORMED <- (data$SALARY^optimal_lambda - 1) / optimal_lambda
+}
+head(data)
+```
+
+# Check Homoscedasticity with Transformed Response Variable
+
+```{r}
+
+leveneTest(SALARY.TRANSFORMED ~ DESIGNATION, data = data)
+```
+
+```{r Boxplot}
+boxplot(SALARY.TRANSFORMED ~ DESIGNATION,
+  data = data,
+  main = "Salary by Unit",
+  xlab = "Unit",
+  ylab = "Salary",
+  col = "steelblue",
+  border = "black"
+)
+```
+
+# Do the ANCOVA Test
+
+```{r}
+#load car library
+library(car)
+
+#fit ANCOVA model
+ancova_model <- aov(SALARY.TRANSFORMED ~ DESIGNATION + RATINGS, data = data)
+
+#view summary of model
+Anova(ancova_model, type="III")
+```
